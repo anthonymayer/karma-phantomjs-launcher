@@ -9,7 +9,8 @@ function serializeOption(value) {
 }
 
 
-var PhantomJSBrowser = function(baseBrowserDecorator, config, args) {
+var PhantomJSBrowser = function(baseBrowserDecorator, config, args, logger) {
+  var log  = logger.create('phantomjsLauncher');
   baseBrowserDecorator(this);
 
   this.DEFAULT_CMD = config.cmd;
@@ -33,11 +34,20 @@ var PhantomJSBrowser = function(baseBrowserDecorator, config, args) {
     }
 
     var captureCode = 'var page = require("webpage").create();\n' +
+        'page.onConsoleMessage = function() { console.log.apply(console, arguments); };' +
         optionsCode.join('\n') + '\npage.open("' + url + '");\n';
     fs.writeFileSync(captureFile, captureCode);
 
     // and start phantomjs
     this._execCommand(this._getCommand(), flags.concat(captureFile));
+
+    this._process.stderr.on('data', function (data) {
+      log.error('' + data);
+    });
+
+    this._process.stdout.on('data', function (data) {
+      log.debug('' + data);
+    });
   };
 };
 
@@ -47,7 +57,7 @@ PhantomJSBrowser.prototype = {
   ENV_CMD: 'PHANTOMJS_BIN'
 };
 
-PhantomJSBrowser.$inject = ['baseBrowserDecorator', 'config.phantomjsLauncher', 'args'];
+PhantomJSBrowser.$inject = ['baseBrowserDecorator', 'config.phantomjsLauncher', 'args', 'logger'];
 
 
 // PUBLISH DI MODULE
